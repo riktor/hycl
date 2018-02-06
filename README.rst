@@ -1,1 +1,1 @@
-# clish : common-lisp-like functions and macros for hylang
+# hycl : common-lisp-like functions and macros for hylang
