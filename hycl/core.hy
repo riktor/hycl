@@ -77,7 +77,7 @@
     (zerop (length ls)))
 
   (defun consp (el)
-    (and (not (eq el nil))
+    (and (not (= el nil))
          (or (typep el HyExpression)
              (typep el HyCons))))
 
