@@ -32,8 +32,15 @@
   ;; numerical functions
   (defun mod (n m)
     (% n m))
+  
   (defun zerop (n)
     (= n 0))
+  
+  (defun plusp (n)
+    (> n 0))
+  
+  (defun minusp (n)
+    (< n 0))
 
   (defun oddp (n)
     (zerop (mod n 2)))
@@ -58,7 +65,6 @@
   (defun null (ls)
     (= nil ls))
 
-  ;; whre is HyCons?
   (setf HyCons (type '(1 . 2)))
 
   (defun lst (&rest args)

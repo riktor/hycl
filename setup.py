@@ -4,8 +4,8 @@ import os
 from os import path
 from setuptools import setup
 
-if sys.version_info < (2, 7):
-    sys.exit('hycl requires Python 2.7 or higher')
+if sys.version_info < (3, 4):
+    sys.exit('hycl requires Python 3.4 or higher')
 
 ROOT_DIR = path.abspath(path.dirname(__file__))
 sys.path.insert(0, ROOT_DIR)
@@ -31,13 +31,10 @@ setup(
     url='https://github.com/riktor/hycl/',
     author='Riku Togashi',
     author_email='riktor1221@gmail.com',
-    license='BSD-New',
+    license='MIT License',
     classifiers=[
-        'Development Status :: 4 - Beta',
-        'Intended Audience :: Developers',
-		'License :: OSI Approved :: MIT License',
+	'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
-        'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
