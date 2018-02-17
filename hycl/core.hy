@@ -1,5 +1,8 @@
 (import (hy (HyKeyword)))
-(require [hy.contrib.loop [loop]])
+(require
+  (hy.contrib.loop (loop))
+  (hy.contrib.hy-repr (hy-repr)))
+
 (import
   re
   glob
@@ -193,9 +196,9 @@
                                       `((eq ~g!val ~(car br)) ~@(cdr br))))
                                 branches)))))
 
-  (defun subseq (seq start end)
+  (defun subseq (seq start end)   
     (case (type seq)
-          (str (.join "" (islice seq start end)))
+          (str (.join "" ))
           (list (list (islice seq start end)))
           (HySymbol (HySymbol (.join "" (islice seq start end))))
           (HyExpression (HyExpression (islice seq start end)))
@@ -264,8 +267,11 @@
   ;; sharp macros
   (defmacro/g! pr (&rest args)
     `(let ((~g!once ~(car args)))
-          (print ~g!once ~@(cdr  args))
-          ~g!once))
+       (print ~g!once ~@(cdr  args))
+       ~g!once))
+  
+  (defun pprint (expr)
+    (hy-repr expr)) 
 
   (defsharp p (code)
     "debug print"
