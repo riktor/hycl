@@ -1,13 +1,13 @@
-(import (hy (HyKeyword)))
-(require
-  (hy.contrib.loop (loop))
+(import
+  (hy (HyKeyword))
   (hy.contrib.hy-repr (hy-repr)))
+(require
+  (hy.contrib.loop (loop)))
 
 (import
   re
   glob
   random
-  importlib
   fnmatch
   (functools :as ft))
 
