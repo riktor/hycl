@@ -89,13 +89,8 @@
         (. ls car)
         (first ls)))
   
-  ;; sane cdr
   (defun cdr (ls)
-    (if (emptyp ls)
-        nil
-        (if (typep ls HyCons) ;; malformed cons
-            (. ls cdr)
-            (HyExpression (rest ls)))))
+    (cut ls 1))
 
   (defun cadr (ls)
     (-> ls car cdr))
@@ -133,7 +128,12 @@
     (+ ls1 ls2))
   ;; macros
   (defmacro progn (&rest body)
-    `(do ~@body)))
+    `(do ~@body))
+  
+  (defun group (src n)
+    (HyExpression (apply zip (* [(iter src)] n))))
+  
+  )
 
 (eval-and-compile
   
@@ -295,3 +295,30 @@
     "find file name"
     `(path-genr ~(get dir-fname 1) ~(get dir-fname 0)))
   )
+
+
+(eval-and-compile
+  (defun nreplace-el (from to tree &optional guard)
+    (loop
+      ((from from)
+        (to to)
+        (tree tree)
+        (guard guard))
+      (for (i (range (len tree)))
+        (setv el (get tree i))
+        (cond/cl ((consp el) (if (= (get el 0) guard)
+                                 (continue)
+                                 (recur from to el guard)))
+                 ((= el from) (setf (get tree i) to)))))
+    tree)
+
+  (defmacro! => (&rest args)
+    (let ((replaced (nreplace-el '_ g!it (cdr args) '=>))
+           (cur `(let ((~g!it ~(get args 0)))
+                   ~g!it)))
+      (for (sexp (cdr args))
+        (setf cur (if (in g!it (flatten sexp))                    
+                      `(let ((~g!it ~cur))
+                         ~sexp)
+                      (+ sexp [cur]))))
+      cur)))
