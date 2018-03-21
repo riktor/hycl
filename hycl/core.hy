@@ -321,6 +321,6 @@
                       `(let ((~g!it ~cur))
                          ~sexp)
                       (if (consp sexp)
-                          (+ [(get sexp 0) [cur] (cdr sexp)])
+                          (HyExpression (+ [(get sexp 0)] [cur] (cdr sexp)))
                           (+ (HyExpression [sexp]) [cur])))))
       cur)))
