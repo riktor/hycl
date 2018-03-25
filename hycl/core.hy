@@ -193,9 +193,6 @@
 
   )
 
-
-
-
 (eval-and-compile
   (defmacro cond/cl (&rest branches)
     (loop
@@ -205,7 +202,7 @@
           (recur (cdr ls) (lambda (x) (cont `(if ~(caar ls)
                                                  (progn ~@(cdar ls)) 
                                                  ~x))))
-          (cont 'test))))
+          (cont None))))
 
   (defmacro/g! case (exp &rest branches)
     `(let ((~g!val ~exp))
