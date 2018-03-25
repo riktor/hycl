@@ -91,12 +91,21 @@
   
   (defun cdr (ls)
     (cut ls 1))
+  
+  (defun caar (ls)
+    (-> ls car car))
+  
+  (defun cddr (ls)
+    (-> ls cdr cdr))
 
   (defun cadr (ls)
-    (-> ls car cdr))
+    (-> ls cdr car))
 
   (defun cdar (ls)
-    (-> ls cdr car))
+    (-> ls car cdr))
+  
+  (defun apply (fn ls)
+    (fn #*ls))
   
   (defun mapcar (func &rest seqs)
     (HyExpression
@@ -123,7 +132,7 @@
       (if ls
           (recur (cdr ls) (nconc acc (func (car ls))))
           (HyExpression acc))))
-
+  
   (defun append (ls1 ls2)
     (+ ls1 ls2))
   ;; macros
@@ -142,7 +151,7 @@
   
   (defmacro/g! let (var:val &rest body)
     `((lambda ~(mapcar car var:val) ~@body)
-       ~@(mapcar cdar var:val)))
+       ~@(mapcar cadr var:val)))
 
   (defmacro/g! let* (var:val &rest body)
     (loop
@@ -184,9 +193,19 @@
 
   )
 
+
+
+
 (eval-and-compile
   (defmacro cond/cl (&rest branches)
-    `(cond ~@(map list branches)))
+    (loop
+      ((ls branches)
+        (cont (lambda (x) x)))    
+      (if ls
+          (recur (cdr ls) (lambda (x) (cont `(if ~(caar ls)
+                                                 (progn ~@(cdar ls)) 
+                                                 ~x))))
+          (cont 'test))))
 
   (defmacro/g! case (exp &rest branches)
     `(let ((~g!val ~exp))
@@ -214,14 +233,14 @@
              (if rest
                  `((~rest (subseq ~seq 0 ~n)))
                  (let ((p (car pat))
-                        (rec (destruc (cdr pat) seq (+ n 1))))
-                      (if (not (consp p)) 
-                          (cons `(~p (get ~seq ~n))
-                                rec)
-                          (let ((var (gensym)))
-                               (cons (cons `(~var (get ~seq ~n))
-                                           (destruc p var 0))
-                                     rec))))))))
+                          (rec (destruc (cdr pat) seq (+ n 1))))
+                     (if (not (consp p)) 
+                         (cons `(~p (get ~seq ~n))
+                               rec)
+                         (let ((var (gensym)))
+                           (cons (cons `(~var (get ~seq ~n))
+                                       (destruc p var 0))
+                                 rec))))))))
 
   (defun dbind-ex (binds body)
     (if (null binds)
@@ -273,15 +292,15 @@
   (defun pprint (expr)
     (hy-repr expr)) 
 
-  (defsharp p (code)
+  (deftag p (code)
     "debug print"
     `(pr ~code))
 
-  (defsharp r (regex)
+  (deftag r (regex)
     "regexp"
     `(re.compile ~regex))
 
-  (defsharp g (path)
+  (deftag g (path)
     "glob"
     `(glob.glob ~path))
 
@@ -291,7 +310,7 @@
         (if (fnmatch.fnmatch f fname)
             (yield (os.path.join (get tp 0) f))))))
 
-  (defsharp f (dir-fname)
+  (deftag f (dir-fname)
     "find file name"
     `(path-genr ~(get dir-fname 1) ~(get dir-fname 0)))
   )
@@ -300,15 +319,13 @@
 (eval-and-compile
   (defun nreplace-el (from to tree &optional guard)
     (loop
-      ((from from)
-        (to to)
-        (tree tree)
-        (guard guard))
+      ((tree tree)
+       (guard guard))
       (for (i (range (len tree)))
         (setv el (get tree i))
         (cond/cl ((consp el) (if (= (get el 0) guard)
                                  (continue)
-                                 (recur from to el guard)))
+                                 (recur el guard)))
                  ((= el from) (setf (get tree i) to)))))
     tree)
 
