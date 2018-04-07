@@ -41,7 +41,7 @@ setup(
     ],
     keywords='hy lisp common-lisp',
     install_requires=[
-        'hy>=0.13.0',
+        'hy>=0.14.0',
     ],
     packages=['hycl'],
     package_data={'hycl': HYSRC},
