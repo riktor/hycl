@@ -105,11 +105,7 @@
     (-> ls car cdr))
   
   (defun apply (fn ls)
-    (fn #*ls))
-  
-  (defun mapcar (func &rest seqs)
-    (HyExpression
-      (apply (ft.partial map func) seqs)))
+    (fn #*ls))  
   
   (defmacro push (el ls)
     `(setf ~ls (cons ~el ~ls)))
@@ -137,12 +133,16 @@
     (+ ls1 ls2))
   ;; macros
   (defmacro progn (&rest body)
-    `(do ~@body))
+    `(do ~@body))  
+  )
+
+(eval-and-compile
+  (defun mapcar (func &rest seqs)
+    (HyExpression
+      (apply (ft.partial map func) seqs)))
   
   (defun group (src n)
-    (HyExpression (apply zip (* [(iter src)] n))))
-  
-  )
+    (HyExpression (apply zip (* [(iter src)] n)))))
 
 (eval-and-compile
   
