@@ -7,16 +7,22 @@
 (import
   re
   glob
-  random
   fnmatch
+  datetime  
   (functools :as ft))
 
 
 (eval-and-compile
   (import (functools :as ft))
+  
   ;; renamed functions
-  (defmacro setf (&rest args)
-    `(setv ~@args))
+  (defmacro! setf (&rest args)
+    ;; Beware of humongous stdout(in repl)!!
+    `(do
+       (setv ~@(get args (slice 0 (- (len args) 2))))
+       (setv ~g!tmp ~(get args -1))
+       (setv ~@(get args (slice -2 None)))
+       ~g!tmp))
 
   (defmacro typep (obj objtype)
     `(is (type ~obj) ~objtype))
@@ -149,11 +155,11 @@
   (defmacro lambda (lambda-list &rest body)
     `(fn ~lambda-list ~@body))
   
-  (defmacro/g! let (var:val &rest body)
+  (defmacro! let (var:val &rest body)
     `((lambda ~(mapcar car var:val) ~@body)
        ~@(mapcar cadr var:val)))
 
-  (defmacro/g! let* (var:val &rest body)
+  (defmacro! let* (var:val &rest body)
     (loop
       ((ls (nreverse var:val))
         (acc body))
@@ -164,7 +170,7 @@
                                       `(~acc))))
           acc)))  
 
-  (defmacro/g! prog1 (&rest body)
+  (defmacro! prog1 (&rest body)
     `(let ((~g!sexp-1 ~(car body)))
           (progn
             ~@(cdr body)
@@ -189,8 +195,8 @@
            (if (consp el)
                (nconc acc el)
                (.append acc el)))
-         acc))
-
+      acc))
+  
   )
 
 (eval-and-compile
@@ -204,7 +210,7 @@
                                                  ~x))))
           (cont None))))
 
-  (defmacro/g! case (exp &rest branches)
+  (defmacro! case (exp &rest branches)
     `(let ((~g!val ~exp))
           (cond/cl ~@(list (map (lambda (br)
                                   (if (= (car br) 'otherwise)
@@ -254,7 +260,7 @@
                                  binds)
                          body))))
 
-  (defmacro/g! dbind (pat seq &rest body)
+  (defmacro! dbind (pat seq &rest body)
     `(let ((~g!seq ~seq))
           ~(dbind-ex (destruc pat g!seq 0) body)))
 
@@ -267,13 +273,13 @@
     `(dbind ~var-list ~expr ~@body))
 
   ;; errors
-  (defmacro/g! ignore-errors (&rest body)
+  (defmacro! ignore-errors (&rest body)
     `(try
        ~@body
        (except (~g!err Exception)
          nil)))
 
-  (defmacro/g! unwind-protect (protected &rest body)
+  (defmacro! unwind-protect (protected &rest body)
     `(try
        ~protected
        (except (~g!err Exception)
@@ -281,13 +287,10 @@
          (raise ~g!err))))
 
   ;; sharp macros
-  (defmacro/g! pr (&rest args)
-    `(let ((~g!once ~(car args)))
-       (print ~g!once ~@(cdr  args))
-       ~g!once))
-  
-  (defun pprint (expr)
-    (hy-repr expr)) 
+  (defmacro! pr (o!arg)
+    `(progn
+       (print ~o!arg)
+       ~o!arg))
 
   (deftag p (code)
     "debug print"
@@ -295,12 +298,16 @@
 
   (deftag r (regex)
     "regexp"
-    `(re.compile ~regex))
+    `(progn
+       (import re)
+       (re.compile ~regex)))
 
   (deftag g (path)
     "glob"
-    `(glob.glob ~path))
-
+    `(progn
+       (import glob)
+       (glob.glob ~path)))    
+  
   (defun path-genr (fname dir)
     (for (tp (os.walk dir))       
       (for (f (get tp 2))
@@ -310,8 +317,13 @@
   (deftag f (dir-fname)
     "find file name"
     `(path-genr ~(get dir-fname 1) ~(get dir-fname 0)))
+  
+  (defun ts ()
+    "timestamp"
+    (progn
+      (import datetime)       
+      (datetime.datetime.now)))
   )
-
 
 (eval-and-compile
   (defun nreplace-el (from to tree &optional guard)
@@ -337,4 +349,62 @@
                       (if (consp sexp)
                           (HyExpression (+ [(get sexp 0)] [cur] (cdr sexp)))
                           (+ (HyExpression [sexp]) [cur])))))
-      cur)))
+      cur))
+  )
+
+(eval-and-compile
+    
+  (defun slurp (path)
+    (.read (open path 'r)))
+
+  (defun slurpls (path &optional (delim None))
+    (with (fr (open path 'r))
+      (if delim
+          (list-comp
+            (if delim
+                (.split (.strip line) delim)
+                (.strip line))
+            (line fr))
+          (.readlines fr))))
+
+  (defun barf (cont path)
+    (with (fw (open path 'w))
+      (.write fw cont))))
+
+(defun barfls (ls path &optional (delim None))    
+  (with (fw (open path 'w))
+    (if delim
+        (for (lst ls)
+          (if delim
+              (=> lst 
+                  (map str _)
+                  (.join delim _)
+                  (print :file fw))
+              (print lst :file fw))))))
+
+(eval-and-compile
+  (defmacro me (sexp)
+    ;; use it with 
+    ;; (defun pp-macroexpand ()
+    ;;   (interactive "*")  
+    ;;   (when (get-buffer "*Hy Macroexpand*")
+    ;;     (kill-buffer "*Hy Macroexpand*"))
+    ;;   (let ((beg nil)
+    ;;          (end nil))
+    ;;     (beginning-of-defun)
+    ;;     (setf beg (point))
+    ;;     (end-of-defun)
+    ;;     (setf end (point))
+    ;;     (let ((sexp (car (read-from-string
+    ;;                        (buffer-substring beg end))))
+    ;;            (buf (get-buffer-create "*Hy Macroexpand*")))
+    ;;       (pp sexp buf)
+    ;;       (display-buffer buf))))
+    `(=> ~sexp
+         macroexpand-1
+         hy-repr       
+         (.replace ";" "")
+         (.replace "(." "(!dot")
+         (get _ (slice 1 (len _)))       
+         print))
+  )
