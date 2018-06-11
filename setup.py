@@ -22,7 +22,6 @@ version = next((line.split('=')[1].strip().replace("'", '')
 
 HYSRC = ['**.hy']
 
-
 setup(
     name='hycl',
     version=version,
@@ -42,6 +41,7 @@ setup(
     keywords='hy lisp common-lisp',
     install_requires=[
         'hy>=0.14.0',
+        'ptpdb'
     ],
     packages=['hycl'],
     package_data={'hycl': HYSRC},
