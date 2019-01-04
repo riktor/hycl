@@ -1,16 +1,18 @@
 (import
-  (hy (HyKeyword))
-  (hy.contrib.hy-repr (hy-repr)))
+  [hy [HyKeyword]]
+  [hy.contrib.hy-repr [hy-repr]])
 (require
-  (hy.contrib.loop (loop)))
-
-(import    
-  (functools :as ft))
+  [hy.contrib.loop [loop]])
 
 
 (eval-and-compile
-  (import (functools :as ft))
+  (import
+    [functools :as ft])
   
+  (defn cons [a b]
+    (+ (HyExpression [a]) b)))
+
+(eval-and-compile
   ;; renamed functions
   (defmacro! setf (&rest args)
     ;; Beware of humongous stdout(in repl)!!
@@ -22,10 +24,11 @@
   (defmacro typep (obj objtype)
     `(is (type ~obj) ~objtype))
 
+  ;; todo: &optional cannnot accept () form. (now only stupid [])
   (defmacro defun (name lambda-list doc &rest body)
     (if (not (typep doc str))
-        `(defn ~name ~lambda-list ~@(cons doc body))
-        `(defn ~name ~lambda-list doc ~@body)))
+        `(defn ~name ~(list lambda-list) ~@(cons doc (HyExpression body)))
+        `(defn ~name ~(list lambda-list) doc ~@body)))
 
   (defun eq (x y)
     (is x y))
@@ -55,17 +58,17 @@
   (defun divisible (n m)
     (zerop (mod n m)))
 
-  (defmacro incf (n &optional (delta 1))
+  (defmacro incf (n  &optional [delta 1])
     `(setf ~n (+ ~n ~delta)))
 
-  (defmacro decf (n &optional (delta 1))
+  (defmacro decf (n &optional [delta 1])
     `(setf ~n (- ~n ~delta)))
   
   (defmacro 1+ (n)
-     `(setf ~n (+ ~n 1)))
+    `(+ ~n 1))
   
   (defmacro 1- (n)
-     `(setf ~n (+ ~n 1)))
+    `(+ ~n 1))
   
   ;; list functions
   ;; ------------------- DO NOT SET nil!!-----------------------------
@@ -74,8 +77,6 @@
 
   (defun null (ls)
     (= nil ls))
-
-  (setf HyCons (type '(1 . 2)))
 
   (defun lst (&rest args)
     (HyExpression args))
@@ -88,13 +89,10 @@
 
   (defun consp (el)
     (and (not (= el nil))
-         (or (typep el HyExpression)
-             (typep el HyCons))))
+         (typep el HyExpression)))
 
   (defun car (ls)
-    (if (typep ls HyCons)
-        (. ls car)
-        (first ls)))
+    (first ls))
   
   (defun cdr (ls)
     (cut ls 1))
@@ -112,7 +110,7 @@
     (-> ls car cdr))
   
   (defun apply (fn ls)
-    (fn #*ls))  
+    (fn #*ls))
   
   (defmacro push (el ls)
     `(setf ~ls (cons ~el ~ls)))
@@ -155,7 +153,7 @@
 (eval-and-compile
   
   (defmacro lambda (lambda-list &rest body)
-    `(fn ~lambda-list ~@body))
+    `(fn ~(list lambda-list) ~@body))
   
   (defmacro! let (var:val &rest body)
     `((lambda ~(mapcar car var:val) ~@body)
@@ -193,18 +191,18 @@
   
   (defun pushl (ls el)
     (.insert ls 0 el))
+  
+  )
 
+(eval-and-compile
   (defun flatten-1 (ls)
     (let ((acc ()))
-         (for (el ls)
+         (for [el ls]
            (if (consp el)
                (nconc acc el)
                (.append acc el)))
          acc))
   
-  )
-
-(eval-and-compile
   (defmacro cond/cl (&rest branches)
     (loop
       ((ls branches)
@@ -271,7 +269,7 @@
 
 
   (defmacro values (&rest returns)
-    `(HyExpression (list ~returns)))
+    `(tuple ~returns))
 
   ;; multiple-value-bind
   (defmacro mvb (var-list expr &rest body)
@@ -281,13 +279,13 @@
   (defmacro! ignore-errors (&rest body)
     `(try
        ~@body
-       (except (~g!err Exception)
+       (except [~g!err Exception]
          nil)))
 
   (defmacro! unwind-protect (protected &rest body)
     `(try
        ~protected
-       (except (~g!err Exception)
+       (except [~g!err Exception]
          ~@body
          (raise ~g!err))))
 
@@ -297,17 +295,17 @@
        (print ~o!arg)
        ~o!arg))
 
-  (deftag p (code)
+  (deftag p [code]
     "debug print"
     `(pr ~code))
 
-  (deftag r (regex)
+  (deftag r [regex]
     "regexp"
     `(do
        (import re)
        (re.compile ~regex)))
 
-  (deftag g (path)
+  (deftag g [path]
     "glob"
     `(do
        (import glob)
@@ -317,16 +315,16 @@
   (import os fnmatch)
   
   (defun path-genr (fname dir)
-    (for (tp (os.walk dir))       
-      (for (f (get tp 2))
+    (for [tp (os.walk dir)]       
+      (for [f (get tp 2)]
         (if (fnmatch.fnmatch f fname)
             (yield (os.path.join (get tp 0) f))))))
 
-  (deftag f (dir-fname)
+  (deftag f [dir-fname]
     "find file name"
     `(path-genr ~(get dir-fname 1) ~(get dir-fname 0)))
   
-  (deftag sh (command)
+  (deftag sh [command]
     `(do
        (import subprocess)
        (setf proc (subprocess.Popen ~command
@@ -350,7 +348,7 @@
     (loop
       ((tree tree)
        (guard guard))
-      (for (i (range (len tree)))
+      (for [i (range (len tree))]
         (setv el (get tree i))        
         (cond/cl ((consp el)  (if (= (get el 0) guard) 
                                   (continue)
@@ -362,7 +360,7 @@
     (let ((replaced (nreplace-el '_ g!it (cdr args) '=>))
           (cur `(let ((~g!it ~(get args 0)))
                      ~g!it)))
-         (for (sexp (cdr args))        
+         (for [sexp (cdr args)]        
            (setf cur (if (in g!it (flatten [sexp]))                    
                          `(let ((~g!it ~cur))
                                ~sexp)
@@ -377,7 +375,7 @@
   (defun slurp (path)
     (.read (open path 'r)))
 
-  (defun slurpls (path &optional (delim None))
+  (defun slurpls (path &optional [delim None])
     (with (fr (open path 'r))
       (if delim
           (list-comp
@@ -391,10 +389,10 @@
     (with (fw (open path 'w))
       (.write fw cont)))
   
-  (defun barfls (ls path &optional (delim None))    
+  (defun barfls (ls path &optional [delim None])    
     (with (fw (open path 'w))
       (if delim
-          (for (lst ls)
+          (for [lst ls]
             (if delim
                 (=> lst 
                     (map str _)
@@ -404,18 +402,18 @@
 
 ;; debugging utils
 (eval-and-compile
-  (deftag bp ()
+  (deftag bp []
     ;; breakpoint
     `(do (import ptpdb) (ptpdb.set_trace)))
   
-  (import (io (StringIO))
+  (import [io [StringIO]]
           traceback
           sys
-          code          
-          (IPython.terminal.embed (InteractiveShellEmbed :as ise))
-          (IPython.lib.pretty (pretty)))  
+          code
+          [IPython.terminal.embed [InteractiveShellEmbed :as ise]]
+          [IPython.lib.pretty [pretty]])  
   
-  (defclass CallStackViewer (object)
+  (defclass CallStackViewer [object]
     (defun __init__ (self tb)
       (setf self.tb tb
             self.frames []
@@ -425,9 +423,9 @@
         (.append self.frames tb.tb-frame))
       (setf self.last-frame (get self.frames -1)))
     
-    (defun get-locs (self &optional (n 5))
+    (defun get-locs (self &optional [n 5])
       (setf locs [])
-      (for (frame (get self.frames (slice (- n) None)))
+      (for [frame (get self.frames (slice (- n) None))]
         (setf code frame.f-code
               args (dict-comp
                      arg (get frame.f-locals arg)
@@ -439,7 +437,7 @@
         (.append locs (, code.co-name args loc-vars)))
       locs))
   
-  (defun debug (f)
+  (defun debug [f]
     ;; postmortem (in failed call stack)
     ;; 1. Don't use in hy-mode repl
     ;; 2. your script will fail for circular importing in IPython/core/completer.py. so run a script with $ hy -c "(import script)(script.main)"
@@ -447,7 +445,7 @@
       (defun wrapper (&rest args &kwargs kwargs)
         (try
           (f #*args #**kwargs)
-          (except (e Exception)
+          (except [e Exception]
             (print "Debug mode activated")
             (setf (, type value tb) (sys.exc-info)
                   buf (StringIO))
@@ -457,11 +455,11 @@
                   frame dv.last-frame
                   ns frame.f-locals
                   (get ns 'dv) dv
-                  (get ns 'get-locs) (lambda (&optional (n 5)) (dv.get-locs :n n)))
+                  (get ns 'get-locs) (lambda (&optional [n 5]) (dv.get-locs :n n)))
             (.mainloop (ise) :local-ns ns)))))
     wrapper)
   
-  (deftag d (function-defininition-form)
+  (deftag d [function-defininition-form]
     ;; Try this! Enjoy!
     ;; #d
     ;; (defun test ()

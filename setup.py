@@ -40,7 +40,7 @@ setup(
     ],
     keywords='hy lisp common-lisp',
     install_requires=[
-        'hy>=0.14.0',
+        'hy==0.15.0',
         'ptpdb'
     ],
     packages=['hycl'],
