@@ -20,12 +20,16 @@
        (setv ~@(get args (slice 0 (- (len args) 2))))       
        (setv ~@(get args (slice -2 None)))
        ~(get args -2)))
-
+(+ 1 1)
   (defmacro typep (obj objtype)
     `(is (type ~obj) ~objtype))
 
   ;; todo: &optional cannnot accept () form. (now only stupid [])
   (defmacro defun (name lambda-list doc &rest body)
+    (setv lambda-list (lfor el lambda-list 
+                            (if (is (type el) HyExpression)
+                                (list el)
+                                el))) 
     (if (not (typep doc str))
         `(defn ~name ~(list lambda-list) ~@(cons doc (HyExpression body)))
         `(defn ~name ~(list lambda-list) doc ~@body)))
@@ -139,8 +143,7 @@
   
   ;; macros
   (defmacro progn (&rest body)
-    `(do ~@body))  
-  )
+    `(do ~@body)))
 
 (eval-and-compile
   (defun mapcar (func &rest seqs)
@@ -343,6 +346,7 @@
       (datetime.datetime.now)))
   )
 
+;; pipe utils
 (eval-and-compile
   (defun nreplace-el (from to tree &optional guard)
     (loop
@@ -368,28 +372,51 @@
                              (HyExpression (+ [(get sexp 0)] [cur] (cdr sexp)))
                              (+ (HyExpression [sexp]) [cur])))))
          cur))
+  
+  (defmacro first_ (ls)
+    `(get ~ls 0))
+  
+  (defmacro last_ (ls)
+    `(get ~ls -1))
+  
+  (defmacro spl/ (str)
+    `(.split str "/"))
+  
+  (defmacro spl/t (str)
+    `(.split str "/t"))
+  
+  (defmacro splc (str)
+    `(.split str ","))
+  
+  (defmacro getext (str)
+    `(=> ~str spl/ last_))
+  
+  (defmacro getid (str)
+    `(=> ~str spl/ first_))
+  
+  
   )
 
-(eval-and-compile
-  
-  (defun slurp (path)
-    (.read (open path 'r)))
 
-  (defun slurpls (path &optional [delim None])
-    (with (fr (open path 'r))
+(eval-and-compile   
+  (defun slurp (path &optional (encoding "latin-1"))
+    (.read (open path 'r :encoding encoding)))
+
+  (defun slurpls (path &optional (delim None) (encoding "latin-1"))
+    (with (fr (open path 'r :encoding encoding))
       (if delim
-          (list-comp
+          (lfor
+            line fr
             (if delim
-                (.split (.strip line) delim)
-                (.strip line))
-            (line fr))
+               (.split (.strip line) delim)
+               (.strip line)))
           (.readlines fr))))
 
   (defun barf (cont path)
     (with (fw (open path 'w))
       (.write fw cont)))
   
-  (defun barfls (ls path &optional [delim None])    
+  (defun barfls (ls path &optional (delim None))    
     (with (fw (open path 'w))
       (if delim
           (for [lst ls]
@@ -398,7 +425,9 @@
                     (map str _)
                     (.join delim _)
                     (print :file fw))
-                (print lst :file fw)))))))
+                (print lst :file fw))))))
+  
+  )
 
 ;; debugging utils
 (eval-and-compile
@@ -423,7 +452,7 @@
         (.append self.frames tb.tb-frame))
       (setf self.last-frame (get self.frames -1)))
     
-    (defun get-locs (self &optional [n 5])
+    (defun get-locs (self &optional (n 5))
       (setf locs [])
       (for [frame (get self.frames (slice (- n) None))]
         (setf code frame.f-code
@@ -437,7 +466,7 @@
         (.append locs (, code.co-name args loc-vars)))
       locs))
   
-  (defun debug [f]
+  (defun debug (f)
     ;; postmortem (in failed call stack)
     ;; 1. Don't use in hy-mode repl
     ;; 2. your script will fail for circular importing in IPython/core/completer.py. so run a script with $ hy -c "(import script)(script.main)"
@@ -497,10 +526,11 @@
 ;; nputils
 (eval-and-compile
   (defun parse-indexing (sym)
-    (if (not (in ":" sym)) 
+    (if (not (in ":" (str sym))) 
         sym
         (progn
-          (setf splited (.split sym ":"))
+          (setf sym (str sym) 
+                splited (.split sym ":"))
           (list (map (lambda (el)
                        (if (or (not el) (= el "\ufdd0"))
                            None
@@ -513,16 +543,16 @@
   
   (defun parse-str-indexing (str-i)
     (let ((splited (.split str-i ":")))
-         (list-comp
-           (get (hy.lex.tokenize i) 0)
-           (i splited))))
+         (lfor
+           i splited
+           (get (hy.lex.tokenize i) 0))))
   
   (defmacro nget (ar &rest indices)
-    `(get ~ar ~(list-comp
-                 (cond/cl
-                   ((or (symbol? i) (keyword? i)) `(slice ~@(parse-indexing i)))
-                   ((string? i) (parse-str-indexing i))
-                   (True i))
-                 (i indices))))
+    `(get ~ar ~(tuple (lfor
+                        i indices
+                        (cond/cl
+                          ((or (symbol? i) (keyword? i)) `(slice ~@(parse-indexing i)))
+                          ((string? i) (parse-str-indexing i))
+                          (True i))))))
   
   ) 
